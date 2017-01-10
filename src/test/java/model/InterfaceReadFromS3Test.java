@@ -2,9 +2,9 @@ package model;
 
 import org.junit.Test;
 
-public class InterfaceReadFromS3IT {
+public class InterfaceReadFromS3Test {
     
-    public InterfaceReadFromS3IT() {
+    public InterfaceReadFromS3Test() {
     }
 
     @Test
