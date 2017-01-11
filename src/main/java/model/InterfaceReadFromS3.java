@@ -20,14 +20,9 @@ public class InterfaceReadFromS3 {
     private String bucketName;
     private String jsonFileKey;
     
-    public void setS3(AmazonS3 s3) {
-        this.s3 = s3;
-    }
-    
     public Map<String, Job> getAllJobs(){
         Map<String, Job> jobs = new HashMap<>();
-        ObjectListing objectListing = s3.listObjects( new ListObjectsRequest()
-                .withBucketName(bucketName));
+        ObjectListing objectListing = s3.listObjects(bucketName);
         for (S3ObjectSummary objectSummary : objectListing.getObjectSummaries()){
             String key = objectSummary.getKey();
             if (isHtml(key)){
@@ -44,26 +39,17 @@ public class InterfaceReadFromS3 {
         return Mapper.extractVisibleJobsFromJson(visibilityJsonString);
     }
     
+    public void updateJobByHtmlContent(Job job) throws IOException{
+        String htmlContent = getContentOfHtmlFile(job.getHtmlFileKey());
+        Mapper.updateJobByHtmlContent(job, htmlContent);
+    }
+    
     private String getJobStatusJsonFile() throws IOException{
-        S3Object jsonFileAsS3Object = s3.getObject(new GetObjectRequest(getBucketName(), getJsonFileKey()));
+        S3Object jsonFileAsS3Object = s3.getObject(bucketName, jsonFileKey);
         return s3ObjectContentToString(jsonFileAsS3Object.getObjectContent());
     }
 
-    public String getBucketName() {
-        return bucketName;
-    }
 
-    public void setBucketName(String bucketName) {
-        this.bucketName = bucketName;
-    }
-
-    public String getJsonFileKey() {
-        return jsonFileKey;
-    }
-
-    public void setJsonFileKey(String jsonFileKey) {
-        this.jsonFileKey = jsonFileKey;
-    }
 
     private String s3ObjectContentToString(S3ObjectInputStream objectContent) throws IOException {
         String returnString = "";
@@ -81,6 +67,31 @@ public class InterfaceReadFromS3 {
             return true;
         }
         return false;
+    }
+
+    private String getContentOfHtmlFile(String htmlFileKey) throws IOException {
+        S3Object htmlFile = s3.getObject(bucketName, htmlFileKey);
+        return s3ObjectContentToString(htmlFile.getObjectContent());
+    }
+    
+    public void setS3(AmazonS3 s3) {
+        this.s3 = s3;
+    }
+    
+    public String getBucketName() {
+        return bucketName;
+    }
+
+    public void setBucketName(String bucketName) {
+        this.bucketName = bucketName;
+    }
+
+    public String getJsonFileKey() {
+        return jsonFileKey;
+    }
+
+    public void setJsonFileKey(String jsonFileKey) {
+        this.jsonFileKey = jsonFileKey;
     }
     
 }

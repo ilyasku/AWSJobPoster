@@ -6,18 +6,10 @@ public class Job {
     private boolean contentEdited = false;
     
     private boolean visible;
-    private String htmlFileName;
     private String htmlFileKey;
     private JobType jobType;
     private String htmlContent;
-
-    public String getHtmlFileName() {
-        return htmlFileName;
-    }
-
-    public void setHtmlFileName(String htmlFileName) {
-        this.htmlFileName = htmlFileName;
-    }
+    private String title;
 
     public String getHtmlFileKey() {
         return htmlFileKey;
@@ -65,6 +57,14 @@ public class Job {
 
     public void setVisible(boolean visible) {
         this.visible = visible;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
         
     

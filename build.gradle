@@ -25,6 +25,8 @@ dependencies {
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-core', version: '2.8.5'
     compile group: 'com.fasterxml.jackson.core', name: 'jackson-databind', version: '2.8.5'
     compile group: 'com.amazonaws', name: 'aws-java-sdk-s3', version: '1.11.76'
+    compile group: 'org.jsoup', name: 'jsoup', version: '1.10.2'
+
     
     testCompile 'junit:junit:4.12'
     testCompile group: 'org.mockito', name: 'mockito-all', version: '1.10.19'
