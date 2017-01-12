@@ -22,10 +22,12 @@ import java.util.Map;
 import org.junit.AfterClass;
 import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
+import org.junit.FixMethodOrder;
 import org.junit.Ignore;
 import org.junit.Test;
+import org.junit.runners.MethodSorters;
 
-
+@FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class FlaviaJobPosterIntegrationTest {
         
     private static final String TEST_BUCKET_NAME = "flavia-job-poster-test-bucket";
@@ -106,7 +108,7 @@ public class FlaviaJobPosterIntegrationTest {
     
     
     @Test
-    public void testReadJobsFromBucket(){
+    public void testA_ReadJobsFromBucket(){
         InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
         interfaceRead.setBucketName(TEST_BUCKET_NAME);
         interfaceRead.setJsonFileKey("jobs.json");
@@ -123,7 +125,7 @@ public class FlaviaJobPosterIntegrationTest {
     }
         
     @Test
-    public void testReadVisibilityFromBucket() throws IOException{
+    public void testB_ReadVisibilityFromBucket() throws IOException{
         InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
         interfaceRead.setBucketName(TEST_BUCKET_NAME);
         interfaceRead.setJsonFileKey("jobs.json");
@@ -133,6 +135,103 @@ public class FlaviaJobPosterIntegrationTest {
         assertTrue(visibleJobs.size() == 1);
         assertTrue(visibleJobs.contains("test-job-2.html"));
     }        
+    
+    @Test
+    public void testC_updateJobByHtmlContent() throws IOException {
+        InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
+        interfaceRead.setBucketName(TEST_BUCKET_NAME);
+        interfaceRead.setJsonFileKey("jobs.json");
+        interfaceRead.setS3(s3);
+        
+        Map<String, Job> allJobs = interfaceRead.getAllJobs();
+        
+        Job testJob2 = allJobs.get("test-job-2.html");        
+        interfaceRead.updateJobByHtmlContent(testJob2);        
+        assertTrue(testJob2.getJobType() == JobType.OFFICE);
+        assertTrue("Pizzabäcker*in (m/w)".equals(testJob2.getTitle()));
+        
+        Job testJob1 = allJobs.get("test-job-1.html");        
+        interfaceRead.updateJobByHtmlContent(testJob1);        
+        assertTrue(testJob1.getJobType() == JobType.IT);
+        assertTrue("Spaßbremse (m/w)".equals(testJob1.getTitle()));
+        
+    }
+    
+    @Test 
+    public void testZ_editAndCreateFilesAndUpdateFilesOnS3Accordingly() throws IOException {
+        InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
+        interfaceRead.setBucketName(TEST_BUCKET_NAME);
+        interfaceRead.setJsonFileKey("jobs.json");
+        interfaceRead.setS3(s3);
+        
+        Map<String, Job> allJobs = interfaceRead.getAllJobs();
+        
+        // edit the existing jobs
+        Job job1 = allJobs.get("test-job-1.html");
+        job1.setVisible(true);
+        job1.setVisibilityEdited(true);
+        interfaceRead.updateJobByHtmlContent(job1);
+                
+        job1.setHtmlContent(job1.getHtmlContent() + "append!");
+        job1.setContentEdited(true);
+        
+        Job job2 = allJobs.get("test-job-2.html");
+        job2.setVisible(false);
+        job2.setVisibilityEdited(true);
+        
+        // create new job
+        Job newJob = new Job();  
+        newJob.setHtmlFileKey("test-job-3.html");
+        newJob.setContentEdited(true); // always consider new jobs edited
+        newJob.setVisible(true);        
+        newJob.setVisibilityEdited(true);
+
+        String htmlStringOfNewJob = createHtmlStringOfNewJob();
+        Mapper.updateJobByHtmlContent(newJob, htmlStringOfNewJob);
+        
+        allJobs.put("test-job-3.html", newJob);
+        
+        // set up interface to write to S3
+        InterfaceWriteToS3 interfaceWrite = new InterfaceWriteToS3();
+        interfaceWrite.setS3(s3);
+        interfaceWrite.setBucketName(TEST_BUCKET_NAME);
+        interfaceWrite.setJsonFileKey("jobs.json");
+        
+        // write
+        interfaceWrite.writeJobsToS3(allJobs);
+        
+        // check whether objects were written correctly
+        
+        allJobs = interfaceRead.getAllJobs();
+        assertTrue(3 == allJobs.size());
+        assertTrue(allJobs.containsKey("test-job-3.html"));
+        
+        List<String> visibleJobs = interfaceRead.getVisibleJobs();
+        assertTrue(2 == visibleJobs.size());
+        assertTrue(visibleJobs.contains("test-job-1.html"));
+        assertTrue(visibleJobs.contains("test-job-3.html"));
+
+        job1 = allJobs.get("test-job-1.html");
+        interfaceRead.updateJobByHtmlContent(job1);
+        assertTrue(job1.getHtmlContent().contains("append!"));
+        
+    }
+    
+    /*
+    ============================================================================
+                          PRIVATE FUNCTIONS FOR TESTS
+    ============================================================================
+    */
+    
+    private String createHtmlStringOfNewJob() {
+        String htmlContent = "<span>\n"
+                + "<h2 data-job-type=\"it\">Go-getter (m/w)</h2>"
+                + "<p>Du wirst ordentlich was bewegen, auch nach deinem Tod? Du machst Wasser zu Wein?\n"
+                + "Du unterstützt die Volksfront von Judäa?\n"
+                + "We want you!</p>\n"
+                + "</span>";
+        return htmlContent;
+    }
     
     /*
     ============================================================================
@@ -237,6 +336,8 @@ public class FlaviaJobPosterIntegrationTest {
                 + "such as not being able to access the network.");
         System.out.println("Error Message: " + ace.getMessage());        
     }
+
+
 
 
     

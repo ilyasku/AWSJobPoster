@@ -1,15 +1,33 @@
-apply plugin: 'application'
+buildscript {
+    dependencies {
+        classpath group: 'de.dynamicfiles.projects.gradle.plugins', name: 'javafx-gradle-plugin', version: '8.7.0'
+    }
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+}
+apply plugin: 'java'
 
 repositories {
-  mavenCentral()
+    mavenLocal()
+    mavenCentral()
 }
-
 
 dependencies{
-  compile project(':')
-
-  testCompile('junit:junit:4.12')
-  testCompile group: 'org.mockito', name: 'mockito-all', version: '1.10.19'
+    compile files("${System.properties['java.home']}/lib/ext/jfxrt.jar")
+    compile project(':')    
+    
+    compile group: 'commons-lang', name: 'commons-lang', version: '2.6'
+    
+    testCompile('junit:junit:4.12')
+    testCompile group: 'org.mockito', name: 'mockito-all', version: '1.10.19'
+    
 }
 
-mainClassName = "gui.Main"
+apply plugin: 'javafx-gradle-plugin'
+
+jfx {
+    mainClass = 'gui.MainApp'
+    vendor = 'Ilyas'
+}

@@ -36,7 +36,7 @@ public class MapperTest {
         System.out.println("=================================================");
         System.out.println("test method: testUpdateJobByHtmlContent");
         String htmlContent = "<span>\n"
-                +"<h2 data-job-type=\"office\">Pizzabäcker*in (m/w)</h2>"
+                + "<h2 data-job-type=\"office\">Pizzabäcker*in (m/w)</h2>"
                 + "<p>Du suchst einen kreativen Job? Du willst handwerklich arbeiten und\n"
                 + "gleichzeitig mit neuester Technologie. Dann komm zu uns!\n"
                 + "Wir suchen einen aufgeschlossenen Senior Pizzaentwickler.\n"

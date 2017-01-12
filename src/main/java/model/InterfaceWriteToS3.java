@@ -1,6 +1,10 @@
 package model;
 
 import com.amazonaws.services.s3.AmazonS3;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.JsonNodeFactory;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -19,33 +23,26 @@ public class InterfaceWriteToS3 {
         List<String> visibleJobs = new ArrayList<>();
         boolean needToUpdateJson = false;
         for (Job job : jobs.values()){
-            if (job.VisibilityEdited()){
-                needToUpdateJson = true;                
-            }
             if (job.isVisible()){
                 visibleJobs.add(job.getHtmlFileKey());
             }
             if (job.ContentEdited()){
-                File tmpHtmlFile = createTmpFile(job.getHtmlContent(), job.getHtmlFileKey());
-                writeFileToS3(job.getHtmlFileKey(), tmpHtmlFile);
+                needToUpdateJson = true; // in case the jobType or title was edited ...
+                File temporaryHtmlFile = createTemporaryFile(job.getHtmlContent(), job.getHtmlFileKey());
+                writeFileToS3(job.getHtmlFileKey(), temporaryHtmlFile);
+            }
+            else if (job.VisibilityEdited()){
+                needToUpdateJson = true;                
             }
         }
-        // build json of visible jobs ...
-    }
-    
-    public void setS3(AmazonS3 s3) {
-        this.s3 = s3;
-    }
+        if (needToUpdateJson) {
+            ArrayNode jsonOfVisibleJobs = buildJsonOfVisibleJobs(visibleJobs, jobs);
+            File temporaryJsonFile = createTemporaryFile(jsonOfVisibleJobs.toString(), jsonFileKey);
+            writeFileToS3(jsonFileKey, temporaryJsonFile);
+        }
+    }   
 
-    public void setBucketName(String bucketName) {
-        this.bucketName = bucketName;
-    }
-
-    public void setJsonFileKey(String jsonFileKey) {
-        this.jsonFileKey = jsonFileKey;
-    }
-
-    private File createTmpFile(String fileContent, String fileName) throws IOException {
+    private File createTemporaryFile(String fileContent, String fileName) throws IOException {
         String[] fileNameAndExtension = fileName.split("\\.");
         File file = File.createTempFile(fileNameAndExtension[0], fileNameAndExtension[1]);
         file.deleteOnExit();
@@ -59,5 +56,35 @@ public class InterfaceWriteToS3 {
 
     private void writeFileToS3(String fileKey, File file) {
         s3.putObject(bucketName, fileKey, file);
+    }
+
+    private ArrayNode buildJsonOfVisibleJobs(List<String> visibleJobs, Map<String, Job> jobs) {
+        final JsonNodeFactory factory = JsonNodeFactory.instance;
+        ArrayNode rootNode = factory.arrayNode();
+        
+        for (String jobFileName: visibleJobs){
+            Job currentJobObject = jobs.get(jobFileName);
+            
+            ObjectNode singleJobNode = factory.objectNode();            
+            singleJobNode.put("title", currentJobObject.getTitle());
+            singleJobNode.put("path", currentJobObject.getHtmlFileKey());
+            singleJobNode.put("vacancyType", currentJobObject.getJobType().getStringIdentifier());
+            
+            rootNode.add(singleJobNode);
+        }
+        
+        return rootNode;
+    }
+    
+    public void setS3(AmazonS3 s3) {
+        this.s3 = s3;
+    }
+
+    public void setBucketName(String bucketName) {
+        this.bucketName = bucketName;
+    }
+
+    public void setJsonFileKey(String jsonFileKey) {
+        this.jsonFileKey = jsonFileKey;
     }
 }
