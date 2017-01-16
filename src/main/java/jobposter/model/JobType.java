@@ -1,4 +1,4 @@
-package model;
+package jobposter.model;
 
 public enum JobType {
     IT("it"), OFFICE("office");

@@ -1,5 +1,7 @@
-package model;
+package jobposter.model;
 
+import jobposter.model.InterfaceReadFromS3;
+import jobposter.model.Job;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;

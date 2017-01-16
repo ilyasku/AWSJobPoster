@@ -1,5 +1,10 @@
-package model;
+package jobposter.model;
 
+import jobposter.model.JobType;
+import jobposter.model.InterfaceWriteToS3;
+import jobposter.model.Mapper;
+import jobposter.model.Job;
+import jobposter.model.InterfaceReadFromS3;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentials;

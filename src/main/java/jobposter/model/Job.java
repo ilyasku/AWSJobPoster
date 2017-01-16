@@ -1,11 +1,11 @@
-package model;
+package jobposter.model;
 
 public class Job {
     
-    private boolean visibilityEdited = false;
-    private boolean contentEdited = false;
+    private Boolean visibilityEdited = false;
+    private Boolean contentEdited = false;
     
-    private boolean visible;
+    private Boolean visible;
     private String htmlFileKey;
     private JobType jobType;
     private String htmlContent;
@@ -39,23 +39,23 @@ public class Job {
         return visibilityEdited;
     }
 
-    public void setVisibilityEdited(boolean visibilityEdited) {
+    public void setVisibilityEdited(Boolean visibilityEdited) {
         this.visibilityEdited = visibilityEdited;
     }
 
-    public boolean ContentEdited() {
+    public Boolean ContentEdited() {
         return contentEdited;
     }
 
-    public void setContentEdited(boolean contentEdited) {
+    public void setContentEdited(Boolean contentEdited) {
         this.contentEdited = contentEdited;
     }
 
-    public boolean isVisible() {
+    public Boolean isVisible() {
         return visible;
     }
 
-    public void setVisible(boolean visible) {
+    public void setVisible(Boolean visible) {
         this.visible = visible;
     }
 

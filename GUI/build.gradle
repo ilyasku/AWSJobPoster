@@ -28,6 +28,6 @@ dependencies{
 apply plugin: 'javafx-gradle-plugin'
 
 jfx {
-    mainClass = 'gui.MainApp'
+    mainClass = 'jobpostergui.MainApp'
     vendor = 'Ilyas'
 }
