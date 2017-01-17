@@ -43,7 +43,7 @@ public class Job {
         this.visibilityEdited = visibilityEdited;
     }
 
-    public Boolean ContentEdited() {
+    public Boolean contentEdited() {
         return contentEdited;
     }
 

@@ -32,9 +32,9 @@
                       <RowConstraints minHeight="10.0" prefHeight="30.0" vgrow="SOMETIMES" />
                     </rowConstraints>
                      <children>
-                        <Button mnemonicParsing="false" text="Load Jobs" />
-                        <Button mnemonicParsing="false" text="Save Jobs" GridPane.columnIndex="1" />
-                        <Button mnemonicParsing="false" text="Add Job" GridPane.columnIndex="2" />
+                        <Button fx:id="loadJobsButton" mnemonicParsing="false" onAction="#handleLoadJobsButtonClicked" text="Load Jobs" />
+                        <Button fx:id="saveJobsButton" mnemonicParsing="false" onAction="#handleSaveJobsButtonClicked" text="Save Jobs" GridPane.columnIndex="1" />
+                        <Button fx:id="addJobButton" mnemonicParsing="false" onAction="#handleAddJobButtonClicked" text="Add Job" GridPane.columnIndex="2" />
                      </children>
                   </GridPane>
                </children>
@@ -53,7 +53,7 @@
                       <RowConstraints minHeight="10.0" prefHeight="30.0" valignment="CENTER" vgrow="SOMETIMES" />
                     </rowConstraints>
                      <children>
-                        <CheckBox fx:id="visibleCheckBox" mnemonicParsing="false" text="visible" />
+                        <CheckBox fx:id="visibleCheckBox" mnemonicParsing="false" onAction="#handleVisibleCheckBoxClicked" text="visible" />
                         <Label text="File Name:" GridPane.columnIndex="1">
                            <font>
                               <Font name="System Bold" size="14.0" />
@@ -62,7 +62,7 @@
                               <Insets right="20.0" />
                            </GridPane.margin>
                         </Label>
-                        <TextField fx:id="fileNameField" GridPane.columnIndex="2" />
+                        <TextField fx:id="fileNameField" onAction="#handleFileNameEdited" GridPane.columnIndex="2" />
                      </children>
                   </GridPane>
                </children>

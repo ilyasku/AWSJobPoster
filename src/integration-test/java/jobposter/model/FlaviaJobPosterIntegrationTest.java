@@ -1,10 +1,5 @@
 package jobposter.model;
 
-import jobposter.model.JobType;
-import jobposter.model.InterfaceWriteToS3;
-import jobposter.model.Mapper;
-import jobposter.model.Job;
-import jobposter.model.InterfaceReadFromS3;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.auth.AWSCredentials;
@@ -17,20 +12,22 @@ import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.AfterClass;
-import static org.junit.Assert.assertTrue;
 import org.junit.BeforeClass;
 import org.junit.FixMethodOrder;
-import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
+import static org.junit.Assert.assertTrue;
 
 @FixMethodOrder(MethodSorters.NAME_ASCENDING)
 public class FlaviaJobPosterIntegrationTest {
@@ -113,13 +110,18 @@ public class FlaviaJobPosterIntegrationTest {
     
     
     @Test
-    public void testA_ReadJobsFromBucket(){
-        InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
-        interfaceRead.setBucketName(TEST_BUCKET_NAME);
-        interfaceRead.setJsonFileKey("jobs.json");
-        interfaceRead.setS3(s3);
+    public void testA_ReadJobsFromBucket() throws IOException{
+        WrapperAmazonS3 wrapperAmazonS3 = new WrapperAmazonS3();
+        wrapperAmazonS3.setBucketName(TEST_BUCKET_NAME);
+        wrapperAmazonS3.setJsonFileKey("jobs.json");
+        wrapperAmazonS3.setAmazonS3(s3);
         
-        Map<String, Job> allJobs = interfaceRead.getAllJobs();
+        List<String> htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
+        Map<String, Job> allJobs = new HashMap<>();
+        for (String htmlFileName: htmlFileNames) {
+            allJobs.put(htmlFileName, wrapperAmazonS3.getJob(htmlFileName));
+        }
+        
         assertTrue(allJobs.size() == 2);
         assertTrue(allJobs.containsKey("test-job-1.html"));
         assertTrue(allJobs.containsKey("test-job-2.html"));
@@ -131,32 +133,34 @@ public class FlaviaJobPosterIntegrationTest {
         
     @Test
     public void testB_ReadVisibilityFromBucket() throws IOException{
-        InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
-        interfaceRead.setBucketName(TEST_BUCKET_NAME);
-        interfaceRead.setJsonFileKey("jobs.json");
-        interfaceRead.setS3(s3);
+        WrapperAmazonS3 wrapperAmazonS3 = new WrapperAmazonS3();
+        wrapperAmazonS3.setBucketName(TEST_BUCKET_NAME);
+        wrapperAmazonS3.setJsonFileKey("jobs.json");
+        wrapperAmazonS3.setAmazonS3(s3);
         
-        List<String> visibleJobs = interfaceRead.getVisibleJobs();
+        List<String> visibleJobs = wrapperAmazonS3.getVisibleJobs();
         assertTrue(visibleJobs.size() == 1);
         assertTrue(visibleJobs.contains("test-job-2.html"));
     }        
     
     @Test
     public void testC_updateJobByHtmlContent() throws IOException {
-        InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
-        interfaceRead.setBucketName(TEST_BUCKET_NAME);
-        interfaceRead.setJsonFileKey("jobs.json");
-        interfaceRead.setS3(s3);
+        WrapperAmazonS3 wrapperAmazonS3 = new WrapperAmazonS3();
+        wrapperAmazonS3.setBucketName(TEST_BUCKET_NAME);
+        wrapperAmazonS3.setJsonFileKey("jobs.json");
+        wrapperAmazonS3.setAmazonS3(s3);
         
-        Map<String, Job> allJobs = interfaceRead.getAllJobs();
+        List<String> htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
+        Map<String, Job> allJobs = new HashMap<>();
+        for (String htmlFileName: htmlFileNames) {
+            allJobs.put(htmlFileName, wrapperAmazonS3.getJob(htmlFileName));
+        }               
         
-        Job testJob2 = allJobs.get("test-job-2.html");        
-        interfaceRead.updateJobByHtmlContent(testJob2);        
+        Job testJob2 = allJobs.get("test-job-2.html");                       
         assertTrue(testJob2.getJobType() == JobType.OFFICE);
         assertTrue("Pizzabäcker*in (m/w)".equals(testJob2.getTitle()));
         
-        Job testJob1 = allJobs.get("test-job-1.html");        
-        interfaceRead.updateJobByHtmlContent(testJob1);        
+        Job testJob1 = allJobs.get("test-job-1.html");                
         assertTrue(testJob1.getJobType() == JobType.IT);
         assertTrue("Spaßbremse (m/w)".equals(testJob1.getTitle()));
         
@@ -164,18 +168,21 @@ public class FlaviaJobPosterIntegrationTest {
     
     @Test 
     public void testZ_editAndCreateFilesAndUpdateFilesOnS3Accordingly() throws IOException {
-        InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
-        interfaceRead.setBucketName(TEST_BUCKET_NAME);
-        interfaceRead.setJsonFileKey("jobs.json");
-        interfaceRead.setS3(s3);
+        WrapperAmazonS3 wrapperAmazonS3 = new WrapperAmazonS3();
+        wrapperAmazonS3.setBucketName(TEST_BUCKET_NAME);
+        wrapperAmazonS3.setJsonFileKey("jobs.json");
+        wrapperAmazonS3.setAmazonS3(s3);
         
-        Map<String, Job> allJobs = interfaceRead.getAllJobs();
+        List<String> htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
+        Map<String, Job> allJobs = new HashMap<>();
+        for (String htmlFileName: htmlFileNames) {
+            allJobs.put(htmlFileName, wrapperAmazonS3.getJob(htmlFileName));
+        }
         
-        // edit the existing jobs
+        // edit the existing allJobs
         Job job1 = allJobs.get("test-job-1.html");
         job1.setVisible(true);
-        job1.setVisibilityEdited(true);
-        interfaceRead.updateJobByHtmlContent(job1);
+        job1.setVisibilityEdited(true);        
                 
         job1.setHtmlContent(job1.getHtmlContent() + "append!");
         job1.setContentEdited(true);
@@ -187,37 +194,46 @@ public class FlaviaJobPosterIntegrationTest {
         // create new job
         Job newJob = new Job();  
         newJob.setHtmlFileKey("test-job-3.html");
-        newJob.setContentEdited(true); // always consider new jobs edited
+        newJob.setContentEdited(true); // always consider new allJobs edited
         newJob.setVisible(true);        
         newJob.setVisibilityEdited(true);
 
         String htmlStringOfNewJob = createHtmlStringOfNewJob();
         Mapper.updateJobByHtmlContent(newJob, htmlStringOfNewJob);
         
-        allJobs.put("test-job-3.html", newJob);
-        
-        // set up interface to write to S3
-        InterfaceWriteToS3 interfaceWrite = new InterfaceWriteToS3();
-        interfaceWrite.setS3(s3);
-        interfaceWrite.setBucketName(TEST_BUCKET_NAME);
-        interfaceWrite.setJsonFileKey("jobs.json");
+        allJobs.put("test-job-3.html", newJob);                
         
         // write
-        interfaceWrite.writeJobsToS3(allJobs);
+        List<String> visibleJobs = new ArrayList<>();
+        for (Job job: allJobs.values()){
+            if (job.contentEdited()) {
+                wrapperAmazonS3.writeJobToAmazonS3(job);
+            }                
+            if (job.isVisible()){
+                visibleJobs.add(job.getHtmlFileKey());
+            }
+        }
         
-        // check whether objects were written correctly
+        ArrayNode jobsJson = Mapper.buildJsonNodeOfVisibleJobs(visibleJobs, allJobs);
+        wrapperAmazonS3.writeJsonStringToAmazonS3(jobsJson.toString());
         
-        allJobs = interfaceRead.getAllJobs();
+        
+        // check whether objects were written correctly                
+        htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
+        allJobs = new HashMap<>();
+        for (String htmlFileName: htmlFileNames) {
+            allJobs.put(htmlFileName, wrapperAmazonS3.getJob(htmlFileName));
+        }
+               
         assertTrue(3 == allJobs.size());
         assertTrue(allJobs.containsKey("test-job-3.html"));
         
-        List<String> visibleJobs = interfaceRead.getVisibleJobs();
+        visibleJobs = wrapperAmazonS3.getVisibleJobs();
         assertTrue(2 == visibleJobs.size());
         assertTrue(visibleJobs.contains("test-job-1.html"));
         assertTrue(visibleJobs.contains("test-job-3.html"));
 
-        job1 = allJobs.get("test-job-1.html");
-        interfaceRead.updateJobByHtmlContent(job1);
+        job1 = allJobs.get("test-job-1.html");        
         assertTrue(job1.getHtmlContent().contains("append!"));
         
     }

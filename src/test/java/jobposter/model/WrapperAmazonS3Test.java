@@ -1,32 +1,33 @@
 package jobposter.model;
 
-import jobposter.model.InterfaceReadFromS3;
-import jobposter.model.Job;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.ListObjectsRequest;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import static org.junit.Assert.assertTrue;
 import org.junit.Test;
 import org.mockito.Matchers;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.junit.Assert.assertTrue;
 import org.junit.Ignore;
+import static org.junit.Assert.assertTrue;
+import org.mockito.Mockito;
 import static org.mockito.Mockito.mock;
+import org.apache.commons.io.IOUtils;
 
-public class InterfaceReadFromS3Test {
+public class WrapperAmazonS3Test {
     
-    public InterfaceReadFromS3Test() {
+    public WrapperAmazonS3Test() {
     }
 
+    @Ignore
     @Test
-    public void testGetAllJobs() {
+    public void testGetAllJobs() throws IOException {
         
         // ===================================================
         //            mock dependencies
@@ -49,21 +50,38 @@ public class InterfaceReadFromS3Test {
         ObjectListing mockObjectListing = mock(ObjectListing.class);
         when(mockObjectListing.getObjectSummaries()).thenReturn(mockSummaries);
         
+
+        InputStream stubJob1InputStream = IOUtils.toInputStream("", "UTF-8");
+        InputStream stubJob2InputStream = IOUtils.toInputStream("", "UTF-8");
+                
+        S3Object mockTestJob1 = mock(S3Object.class);
+        //when(mockTestJob1.getObjectContent()).thenReturn((S3ObjectInputStream) stubJob1InputStream);
+        S3Object mockTestJob2 = mock(S3Object.class);
+        //when(mockTestJob1.getObjectContent()).thenReturn((S3ObjectInputStream) stubJob2InputStream);
+        
+        
         AmazonS3 mockS3 = mock(AmazonS3.class);
         when(mockS3.listObjects(Matchers.anyString())).thenReturn(mockObjectListing);
+        when(mockS3.getObject(Matchers.anyString(), Matchers.anyString())).thenReturn(mockTestJob1).thenReturn(mockTestJob2);
         
         // ===================================================
         
-        InterfaceReadFromS3 interfaceRead = new InterfaceReadFromS3();
-        interfaceRead.setS3(mockS3);
+        WrapperAmazonS3 wrapperAmazonS3 = new WrapperAmazonS3();
+        wrapperAmazonS3.setAmazonS3(mockS3);
         
-        Map<String, Job> jobs = interfaceRead.getAllJobs();
+        /*
+        List<String> htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
+        Map<String, Job> jobs = new HashMap<>();
+        for (String htmlFileName: htmlFileNames) {
+            jobs.put(htmlFileName, wrapperAmazonS3.getJob(htmlFileName));
+        }        
         
         assertTrue(jobs.size() == 2);
         assertTrue(jobs.containsKey("test-job-1.html"));
         assertTrue(jobs.containsKey("test-job-2.html"));
         assertTrue("test-job-1.html".equals(jobs.get("test-job-1.html").getHtmlFileKey()));
         assertTrue("test-job-2.html".equals(jobs.get("test-job-2.html").getHtmlFileKey()));                
+        */
     }
 
     @Ignore
@@ -72,17 +90,13 @@ public class InterfaceReadFromS3Test {
         
         S3ObjectInputStream mockContentInputStream = mock(S3ObjectInputStream.class);
         // @TODO How to mock `new InputStreamReader(mockContentInputStream)` inside
-        // InterfaceReadFromS3.s3ObjectContentToString() ????
+        // WrapperAmazonS3.s3ObjectContentToString() ????
         
         S3Object mockJsonFileObject = mock(S3Object.class);
         when(mockJsonFileObject.getObjectContent()).thenReturn(mockContentInputStream);
         
         AmazonS3 mockS3 = mock(AmazonS3.class);
         when(mockS3.getObject(Matchers.anyString(), Matchers.anyString())).thenReturn(mockJsonFileObject);
-    }
-
-    @Test
-    public void testUpdateJobByHtmlContent() throws Exception {
     }
     
 }

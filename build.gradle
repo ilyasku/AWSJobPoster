@@ -30,6 +30,9 @@ dependencies {
     
     testCompile 'junit:junit:4.12'
     testCompile group: 'org.mockito', name: 'mockito-all', version: '1.10.19'
+    // https://mvnrepository.com/artifact/commons-io/commons-io
+    testCompile group: 'commons-io', name: 'commons-io', version: '2.5'
+
   
     runtime("log4j:log4j:1.2.17")
 }

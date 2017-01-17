@@ -4,7 +4,6 @@ import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.beans.property.StringProperty;
-import javafx.beans.value.ObservableBooleanValue;
 import jobposter.model.Job;
 
 public class JobForTableView {
@@ -17,13 +16,16 @@ public class JobForTableView {
         htmlFileKey = new SimpleStringProperty(job.getHtmlFileKey());
         visible = new SimpleBooleanProperty(job.isVisible());
         htmlContent = new SimpleStringProperty(job.getHtmlContent());
+        this.job = job;        
     }
     
     
     
     public void setHtmlFileKey(String htmlFileKey) {
         this.htmlFileKey.set(htmlFileKey);
-        job.setHtmlFileKey(htmlFileKey);
+        if (job != null) {
+            job.setHtmlFileKey(htmlFileKey);
+        }
     }
     
     public String getHtmlFileKey(){
@@ -36,7 +38,9 @@ public class JobForTableView {
     
     public void setVisible(Boolean status) {
         visible.set(status);
-        job.setVisible(status);
+        if (job != null) {
+            job.setVisible(status);
+        }
     }
     
     public boolean isVisible() {
@@ -53,7 +57,9 @@ public class JobForTableView {
     
     public void setHtmlContent(String htmlContent){
         this.htmlContent.set(htmlContent);
-        job.setHtmlContent(htmlContent);
+        if (job != null) {
+            job.setHtmlContent(htmlContent);
+        }
     }
     
     public String getHtmlContent() {
