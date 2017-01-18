@@ -182,21 +182,16 @@ public class FlaviaJobPosterIntegrationTest {
         // edit the existing allJobs
         Job job1 = allJobs.get("test-job-1.html");
         job1.setVisible(true);
-        job1.setVisibilityEdited(true);        
                 
         job1.setHtmlContent(job1.getHtmlContent() + "append!");
-        job1.setContentEdited(true);
         
         Job job2 = allJobs.get("test-job-2.html");
         job2.setVisible(false);
-        job2.setVisibilityEdited(true);
         
         // create new job
         Job newJob = new Job();  
         newJob.setHtmlFileKey("test-job-3.html");
-        newJob.setContentEdited(true); // always consider new allJobs edited
         newJob.setVisible(true);        
-        newJob.setVisibilityEdited(true);
 
         String htmlStringOfNewJob = createHtmlStringOfNewJob();
         Mapper.updateJobByHtmlContent(newJob, htmlStringOfNewJob);
@@ -206,9 +201,7 @@ public class FlaviaJobPosterIntegrationTest {
         // write
         List<String> visibleJobs = new ArrayList<>();
         for (Job job: allJobs.values()){
-            if (job.contentEdited()) {
-                wrapperAmazonS3.writeJobToAmazonS3(job);
-            }                
+            wrapperAmazonS3.writeJobToAmazonS3(job);
             if (job.isVisible()){
                 visibleJobs.add(job.getHtmlFileKey());
             }

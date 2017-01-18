@@ -2,8 +2,6 @@ package jobposter.model;
 
 public class Job {
     
-    private Boolean visibilityEdited = false;
-    private Boolean contentEdited = false;
     
     private Boolean visible;
     private String htmlFileKey;
@@ -33,22 +31,6 @@ public class Job {
 
     public void setHtmlContent(String htmlContent) {
         this.htmlContent = htmlContent;
-    }
-
-    public boolean VisibilityEdited() {
-        return visibilityEdited;
-    }
-
-    public void setVisibilityEdited(Boolean visibilityEdited) {
-        this.visibilityEdited = visibilityEdited;
-    }
-
-    public Boolean contentEdited() {
-        return contentEdited;
-    }
-
-    public void setContentEdited(Boolean contentEdited) {
-        this.contentEdited = contentEdited;
     }
 
     public Boolean isVisible() {

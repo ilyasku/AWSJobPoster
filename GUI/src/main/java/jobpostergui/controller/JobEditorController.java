@@ -1,21 +1,25 @@
 package jobpostergui.controller;
 
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Set;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
+import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.Node;
 import javafx.scene.Parent;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
+import javafx.scene.control.ComboBox;
 import javafx.scene.control.TableColumn;
 import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.web.HTMLEditor;
+import jobposter.model.JobType;
 import jobpostergui.MainApp;
 import jobpostergui.model.JobForTableView;
 
@@ -41,6 +45,10 @@ public class JobEditorController {
     private TextField fileNameField;
     @FXML
     private HTMLEditor contentHtmlEditor;
+    @FXML
+    private Button deleteButton;
+    @FXML
+    private ComboBox jobTypeComboBox;
             
     private MainApp mainApp;
         
@@ -71,18 +79,25 @@ public class JobEditorController {
             }
         });
         
-        
+        jobTypeComboBox.setItems(FXCollections.observableArrayList("IT", "office"));
     }
     
     private void showJobDetails(JobForTableView jobForTableView) {
-        if (currentlySelectedJob != null) {
-            updateHtmlContentOfCurrentlySelectedJob(); 
-        }
+
         currentlySelectedJob = jobForTableView;
         if (jobForTableView != null) {
             visibleCheckBox.setSelected(jobForTableView.isVisible());
             fileNameField.setText(jobForTableView.getHtmlFileKey());
             contentHtmlEditor.setHtmlText(jobForTableView.getHtmlContent());
+            if (jobForTableView.getJob().getJobType() == JobType.OFFICE) {
+                //jobTypeComboBox.getSelectionModel().select("office");
+                jobTypeComboBox.setValue("office");
+            }
+            else {
+                //jobTypeComboBox.getSelectionModel().select("IT");
+                jobTypeComboBox.setValue("IT");
+            }
+            
         }
         else {
             visibleCheckBox.setSelected(false);
@@ -107,35 +122,56 @@ public class JobEditorController {
     @FXML
     private void handleFileNameEdited() {
         if (currentlySelectedJob != null){
-            currentlySelectedJob.setHtmlFileKey(fileNameField.getText());
+            String oldFileName = currentlySelectedJob.getHtmlFileKey();
+            String newFileName = fileNameField.getText();
+            currentlySelectedJob.setHtmlFileKey(newFileName);
+            if (!oldFileName.equals(newFileName)) {
+                mainApp.addJobToDeleteList(oldFileName);
+                mainApp.updateFileNameInJobsMap(oldFileName, newFileName);
+            }
         }
     }
 
     
     @FXML
+    private void handleJobTypeSelected() {        
+        String jobTypeString = (String) jobTypeComboBox.getValue();
+        if ("office".equals(jobTypeString)) {
+            currentlySelectedJob.getJob().setJobType(JobType.OFFICE);
+        }
+        else {
+            currentlySelectedJob.getJob().setJobType(JobType.IT);
+        }
+    }
+    
+    @FXML
     private void handleVisibleCheckBoxClicked() {
         currentlySelectedJob.setVisible(visibleCheckBox.isSelected());
     }
-    
+    @FXML
+    private void handleDeleteButtonClicked() {
+        System.out.println("deleteButton clicked!");        
+    }
         
     @FXML
     private void handleSaveJobsButtonClicked() {
         System.out.println("save button clicked!");
+        mainApp.writeJobsToAmazonS3();
     }
     
     @FXML
-    private void handleLoadJobsButtonClicked() {
+    private void handleLoadJobsButtonClicked() throws IOException {
         System.out.println("load button clicked!");
+        mainApp.loadJobsFromAmazonS3();
+        jobTable.setItems(mainApp.getJobsForTableView());
     }
     
     @FXML
     private void handleAddJobButtonClicked() {
         System.out.println("add job button clicked!");
+        mainApp.showNewJobDialog();
     }
     
-    private void updateHtmlContentOfCurrentlySelectedJob() {
-        currentlySelectedJob.setHtmlContent(contentHtmlEditor.getHtmlText());
-    }
     
     /**
      * Trying to set the stupid font of the Editor!

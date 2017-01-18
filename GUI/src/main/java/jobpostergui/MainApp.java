@@ -8,10 +8,14 @@ import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -19,10 +23,12 @@ import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.stage.Modality;
 import javafx.stage.Stage;
 import jobposter.model.Job;
 import jobposter.model.WrapperAmazonS3;
 import jobpostergui.controller.JobEditorController;
+import jobpostergui.controller.NewJobController;
 import jobpostergui.model.JobForTableView;
 
 
@@ -30,16 +36,19 @@ public class MainApp extends Application {
 
     private static final String BUCKET_NAME = "job-poster-gui-test-bucket";
     private static final String JOB_JSON_FILE_KEY = "jobs.json";
-    
-    
+        
     private Stage primaryStage;
     private BorderPane rootLayout;
     
-    private ObservableList<JobForTableView> jobsForTableView = FXCollections.observableArrayList();
+    private ObservableList<JobForTableView> jobsForTableView;
     
-    private Map<String, Job> jobs;
+    private Map<String, Job> jobs;    
+    private Boolean jobsWereLoaded = false;        
     
-    private WrapperAmazonS3 wrapperAmazonS3;    
+    private WrapperAmazonS3 wrapperAmazonS3;   
+    
+    private List<String> htmlFileNames = new ArrayList<>();
+    private List<String> jobsToBeDeleted = new ArrayList<>();
 
     public MainApp(){
         // some sample data
@@ -83,12 +92,12 @@ public class MainApp extends Application {
     
     public void initRootLayout() {
         try {
-            // Load root layout from fxml file.
+            
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/fxml/RootLayout.fxml"));
             rootLayout = (BorderPane) loader.load();
 
-            // Show the scene containing the root layout.
+            
             Scene scene = new Scene(rootLayout);
             //scene.getStylesheets().add("/styles/styles.css");
             primaryStage.setScene(scene);
@@ -103,12 +112,12 @@ public class MainApp extends Application {
      */
     public void showJobEditor() {
         try {
-            // Load job editor.
+            
             FXMLLoader loader = new FXMLLoader();
             loader.setLocation(MainApp.class.getResource("/fxml/JobEditor.fxml"));
             AnchorPane jobEditor = (AnchorPane) loader.load();
 
-            // Set job editor into the center of root layout.
+            
             rootLayout.setCenter(jobEditor);
             
             JobEditorController controller = loader.getController();
@@ -116,6 +125,63 @@ public class MainApp extends Application {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+    
+    public void loadJobsFromAmazonS3() throws IOException {
+        htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
+        jobsToBeDeleted = new ArrayList<>();
+        jobs = new HashMap<>();
+        for (String htmlFileName: htmlFileNames) {
+            Job job = wrapperAmazonS3.getJob(htmlFileName);
+            job.setVisible(false);
+            jobs.put(htmlFileName, job);
+        }        
+        
+        List<String> visibleJobs = wrapperAmazonS3.getVisibleJobs();
+        for (String fileNameOfVisibleJob: visibleJobs) {
+            Job jobObject = jobs.get(fileNameOfVisibleJob);
+            jobObject.setVisible(true);
+        }
+        
+        createJobsForTableView(jobs.values());
+        jobsWereLoaded = true;        
+    }
+    
+    public void updateFileNameInJobsMap(String oldFileName, String newFileName) {
+        Job jobObject = jobs.get(oldFileName);
+        jobs.remove(oldFileName);
+        jobs.put(newFileName, jobObject);
+    }
+    
+    public void writeJobsToAmazonS3() {
+        System.out.println("writeJobs called!");
+        if (jobsWereLoaded) {
+            // @TODO write jobs ...
+            
+            
+            deleteJobsFromAmazonS3();
+        }
+        
+    }
+    
+    public void addJobToDeleteList(String fileName) {
+        if (htmlFileNames.contains(fileName)) {
+            jobsToBeDeleted.add(fileName);
+        }
+    }
+    
+    
+    public void addJobForTableView(Job job) {
+        JobForTableView jobForTableView = new JobForTableView(job);
+        jobsForTableView.add(jobForTableView);
+    }
+    
+    private void deleteJobsFromAmazonS3() {
+        System.out.println("deleteJobs called!");
+        for (String fileName: jobsToBeDeleted) {
+            System.out.println("deleting " + fileName + "?");
+        }
+        jobsToBeDeleted = new ArrayList<>();
     }
     
     /**
@@ -126,6 +192,10 @@ public class MainApp extends Application {
         return primaryStage;
     }
     
+    public Set<String> getHtmlFileNames() {
+        return jobs.keySet();
+    }
+    
     public static void main(String[] args) throws Exception {
         launch(args);
     }
@@ -133,13 +203,41 @@ public class MainApp extends Application {
     public ObservableList<JobForTableView> getJobsForTableView(){
         return jobsForTableView;
     }
+    
+    public boolean showNewJobDialog() {
+        try {
+            FXMLLoader loader = new FXMLLoader();
+            loader.setLocation(MainApp.class.getResource("/fxml/NewJob.fxml"));
+            AnchorPane page = (AnchorPane) loader.load();
+            
+            Stage dialogStage = new Stage();
+            dialogStage.setTitle("Add new job");
+            dialogStage.initModality(Modality.WINDOW_MODAL);
+            dialogStage.initOwner(primaryStage);
+            Scene scene = new Scene(page);
+            dialogStage.setScene(scene);
+            
+            NewJobController controller = loader.getController();
+            controller.setDialogStage(dialogStage);
+            controller.setMainApp(this);
+            
+            dialogStage.showAndWait();
+            return true;
+        } catch (IOException ex) {
+            ex.printStackTrace();
+            return false;
+        }
+        
+    }
+    
+    public void addJob(Job job){
+        jobs.put(job.getHtmlFileKey(), job);
+    }
 
     private void createJobsForTableView(Collection<Job> listOfJobs) {
-        
-        for (Job job: listOfJobs){
-            
-            JobForTableView jobForTableView = new JobForTableView(job);
-            jobsForTableView.add(jobForTableView);
+        jobsForTableView = FXCollections.observableArrayList();
+        for (Job job: listOfJobs){            
+            addJobForTableView(job);
         }        
     }        
 

@@ -15,7 +15,6 @@ repositories {
 }
 
 dependencies{
-    compile files("${System.properties['java.home']}/lib/ext/jfxrt.jar")
     compile project(':')    
     
     compile group: 'commons-lang', name: 'commons-lang', version: '2.6'
