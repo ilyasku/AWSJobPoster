@@ -28,7 +28,7 @@ public class Mapper {
     }
     
     public static void updateJobByHtmlContent(Job job, String htmlContent){
-        Document htmlDocument = Jsoup.parse(htmlContent);
+        Document htmlDocument = Jsoup.parse(htmlContent);        
         // select the first heading
         Element heading = htmlDocument.select("h0, h1, h2, h3, h4, h5, h6").first();
         String jobTitle = heading.text();        
@@ -65,7 +65,20 @@ public class Mapper {
     }
     
     public static String insertJobTypeIntoHtmlString(String htmlString, JobType jobType){
-        Document htmlDocument = Jsoup.parse(htmlString);
+
+        /** @TODO figure out whether incoming htmlString has a body tag!
+         * If so, the outgoing htmlString should probably keep that body tag.
+         * As it is implemented now, it would not do that!
+         */
         
+        Document htmlDocument = Jsoup.parse(htmlString);
+        Element heading = htmlDocument.select("h0, h1, h2, h3, h4, h5, h6").first();
+        if (jobType == JobType.OFFICE) {
+            heading.attr("data-job-type", "office");
+        } else {
+            heading.attr("data-job-type", "it");
+        }
+        Element body = htmlDocument.select("body").first();
+        return body.html();
     }
 }

@@ -19,7 +19,9 @@ import javafx.scene.control.TableView;
 import javafx.scene.control.TextField;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.web.HTMLEditor;
+import jobposter.model.Job;
 import jobposter.model.JobType;
+import jobposter.model.Mapper;
 import jobpostergui.MainApp;
 import jobpostergui.model.JobForTableView;
 
@@ -83,26 +85,28 @@ public class JobEditorController {
     }
     
     private void showJobDetails(JobForTableView jobForTableView) {
-
+        if (currentlySelectedJob != null) {
+            updateJobHtmlContent();
+            // if a job was touched, it is added to the list of files that need to
+            // be safed (even if it wasn't edited)
+            mainApp.addToFilesThatNeedToBeSaved(currentlySelectedJob.getHtmlFileKey());
+        }
         currentlySelectedJob = jobForTableView;
         if (jobForTableView != null) {
             visibleCheckBox.setSelected(jobForTableView.isVisible());
             fileNameField.setText(jobForTableView.getHtmlFileKey());
             contentHtmlEditor.setHtmlText(jobForTableView.getHtmlContent());
-            if (jobForTableView.getJob().getJobType() == JobType.OFFICE) {
-                //jobTypeComboBox.getSelectionModel().select("office");
+            if (jobForTableView.getJob().getJobType() == JobType.OFFICE) {                
                 jobTypeComboBox.setValue("office");
             }
-            else {
-                //jobTypeComboBox.getSelectionModel().select("IT");
+            else {                
                 jobTypeComboBox.setValue("IT");
             }
             
         }
         else {
             visibleCheckBox.setSelected(false);
-            fileNameField.setText("");
-            //contentHtmlEditor.setHtmlText("");
+            fileNameField.setText("");            
         }
     }
     
@@ -125,9 +129,8 @@ public class JobEditorController {
             String oldFileName = currentlySelectedJob.getHtmlFileKey();
             String newFileName = fileNameField.getText();
             currentlySelectedJob.setHtmlFileKey(newFileName);
-            if (!oldFileName.equals(newFileName)) {
-                mainApp.addJobToDeleteList(oldFileName);
-                mainApp.updateFileNameInJobsMap(oldFileName, newFileName);
+            if (!oldFileName.equals(newFileName)) {                
+                mainApp.propagateRenamingOfFileToAllLists(oldFileName, newFileName);
             }
         }
     }
@@ -135,12 +138,18 @@ public class JobEditorController {
     
     @FXML
     private void handleJobTypeSelected() {        
-        String jobTypeString = (String) jobTypeComboBox.getValue();
-        if ("office".equals(jobTypeString)) {
-            currentlySelectedJob.getJob().setJobType(JobType.OFFICE);
-        }
-        else {
-            currentlySelectedJob.getJob().setJobType(JobType.IT);
+        if (currentlySelectedJob != null) {
+            Job job = currentlySelectedJob.getJob();
+            String jobTypeString = (String) jobTypeComboBox.getValue();
+            if ("office".equals(jobTypeString)) {
+                job.setJobType(JobType.OFFICE);                
+            }
+            else {
+                job.setJobType(JobType.IT);
+            }
+            String htmlString = contentHtmlEditor.getHtmlText();
+            String htmlStringWithJobTypeUpdated = Mapper.insertJobTypeIntoHtmlString(htmlString, job.getJobType());            
+            contentHtmlEditor.setHtmlText(htmlStringWithJobTypeUpdated);
         }
     }
     
@@ -150,11 +159,27 @@ public class JobEditorController {
     }
     @FXML
     private void handleDeleteButtonClicked() {
+        /**
+        int selectedIndex = jobTable.getSelectionModel().getSelectedIndex();
+        if (selectedIndex >= 0) {
+            jobTable.getItems().remove(selectedIndex);
+        }
+        */        
         System.out.println("deleteButton clicked!");        
+        fileNameField.setText("");
+        contentHtmlEditor.setHtmlText("");
+        visibleCheckBox.setSelected(false);
+        if (currentlySelectedJob != null) {
+            currentlySelectedJob.setVisible(false);
+            mainApp.deleteFromJobsForTableView(currentlySelectedJob);
+        }        
     }
         
     @FXML
     private void handleSaveJobsButtonClicked() {
+        updateJobHtmlContent();
+        // add job currently selected to list of jobs that need to be saved.
+        mainApp.addToFilesThatNeedToBeSaved(currentlySelectedJob.getHtmlFileKey());
         System.out.println("save button clicked!");
         mainApp.writeJobsToAmazonS3();
     }
@@ -226,6 +251,12 @@ public class JobEditorController {
         }
         */        
         contentHtmlEditor.setHtmlText(feedback);
+    }
+
+    private void updateJobHtmlContent() {
+        if (currentlySelectedJob != null) {
+            currentlySelectedJob.setHtmlContent(contentHtmlEditor.getHtmlText());
+        }
     }
     
 }

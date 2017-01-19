@@ -7,12 +7,14 @@ import com.amazonaws.regions.Region;
 import com.amazonaws.regions.Regions;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.AmazonS3Client;
+import com.fasterxml.jackson.databind.node.ArrayNode;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -21,11 +23,14 @@ import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
 import jobposter.model.Job;
+import jobposter.model.Mapper;
 import jobposter.model.WrapperAmazonS3;
 import jobpostergui.controller.JobEditorController;
 import jobpostergui.controller.NewJobController;
@@ -49,6 +54,7 @@ public class MainApp extends Application {
     
     private List<String> htmlFileNames = new ArrayList<>();
     private List<String> jobsToBeDeleted = new ArrayList<>();
+    private List<String> htmlFilesThatNeedToBeSaved = new ArrayList<>();
 
     public MainApp(){
         // some sample data
@@ -130,6 +136,7 @@ public class MainApp extends Application {
     public void loadJobsFromAmazonS3() throws IOException {
         htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
         jobsToBeDeleted = new ArrayList<>();
+        htmlFilesThatNeedToBeSaved = new ArrayList<>();
         jobs = new HashMap<>();
         for (String htmlFileName: htmlFileNames) {
             Job job = wrapperAmazonS3.getJob(htmlFileName);
@@ -147,17 +154,62 @@ public class MainApp extends Application {
         jobsWereLoaded = true;        
     }
     
-    public void updateFileNameInJobsMap(String oldFileName, String newFileName) {
+    public void propagateRenamingOfFileToAllLists(String oldFileName, String newFileName) {
         Job jobObject = jobs.get(oldFileName);
         jobs.remove(oldFileName);
         jobs.put(newFileName, jobObject);
+        if (htmlFilesThatNeedToBeSaved.contains(oldFileName)) {
+            htmlFilesThatNeedToBeSaved.remove(oldFileName);            
+        }
+        addJobToDeleteList(oldFileName);
+        addToFilesThatNeedToBeSaved(newFileName);
     }
     
-    public void writeJobsToAmazonS3() {
+    public void addToFilesThatNeedToBeSaved(String htmlFileName) {
+        if (!htmlFilesThatNeedToBeSaved.contains(htmlFileName)) {
+            htmlFilesThatNeedToBeSaved.add(htmlFileName);
+        }
+    }
+    
+    public void writeJobsToAmazonS3(){
         System.out.println("writeJobs called!");
         if (jobsWereLoaded) {
-            // @TODO write jobs ...
-            
+            List<String> visibleJobs = new ArrayList<>();
+            for (Entry<String, Job> entry: jobs.entrySet()){
+                String fileName = entry.getKey();
+                Job job  = entry.getValue();
+                if (fileName != job.getHtmlFileKey()) {
+                    Alert alert = new Alert(AlertType.ERROR);
+                    alert.initOwner(primaryStage);
+                    alert.setTitle("Something went awfully wrong!");
+                    alert.setHeaderText("File names not matching!");
+                    alert.setContentText("In the map of jobs, the file name referencing\n"
+                            + "to the job object does not match the filename\n"
+                            + "stored in the job object!\n"
+                            + "Name in map: "+fileName + "\n"
+                            + "Name in job object: " + job.getHtmlFileKey());
+                    alert.showAndWait();
+                    primaryStage.close();
+                    System.exit(1);
+                }
+                if (htmlFilesThatNeedToBeSaved.contains(fileName)) {
+                    try {
+                        System.out.println("saving file " + fileName);
+                        wrapperAmazonS3.writeJobToAmazonS3(job);
+                    } catch (IOException ex) {
+                        Logger.getLogger(MainApp.class.getName()).log(Level.SEVERE, null, ex);
+                    }
+                }
+                if (job.isVisible()){
+                    visibleJobs.add(fileName);
+                }
+            }
+            ArrayNode jobsJson = Mapper.buildJsonNodeOfVisibleJobs(visibleJobs, jobs);
+            try {
+                wrapperAmazonS3.writeJsonStringToAmazonS3(jobsJson.toString());
+            } catch (IOException ex) {
+                Logger.getLogger(MainApp.class.getName()).log(Level.SEVERE, null, ex);
+            }
             
             deleteJobsFromAmazonS3();
         }
@@ -179,7 +231,8 @@ public class MainApp extends Application {
     private void deleteJobsFromAmazonS3() {
         System.out.println("deleteJobs called!");
         for (String fileName: jobsToBeDeleted) {
-            System.out.println("deleting " + fileName + "?");
+            System.out.println("deleting " + fileName);
+            wrapperAmazonS3.deleteFile(fileName);
         }
         jobsToBeDeleted = new ArrayList<>();
     }
@@ -257,5 +310,10 @@ public class MainApp extends Application {
         Region region = Region.getRegion(Regions.EU_CENTRAL_1);
         s3.setRegion(region);
         return s3;
+    }
+
+    public void deleteFromJobsForTableView(JobForTableView currentlySelectedJob) {
+        addJobToDeleteList(currentlySelectedJob.getHtmlFileKey());
+        jobsForTableView.remove(currentlySelectedJob);
     }
 }
