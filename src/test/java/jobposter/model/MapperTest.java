@@ -1,8 +1,5 @@
 package jobposter.model;
 
-import jobposter.model.JobType;
-import jobposter.model.Mapper;
-import jobposter.model.Job;
 import java.util.List;
 import org.junit.Test;
 import static org.junit.Assert.*;

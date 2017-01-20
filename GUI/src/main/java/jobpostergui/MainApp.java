@@ -15,25 +15,33 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Optional;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javafx.application.Application;
+import javafx.application.Platform;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.event.EventHandler;
 import javafx.fxml.FXMLLoader;
 import javafx.scene.Scene;
 import javafx.scene.control.Alert;
 import javafx.scene.control.Alert.AlertType;
+import javafx.scene.control.ButtonType;
+import javafx.scene.control.Label;
 import javafx.scene.layout.AnchorPane;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.paint.Color;
 import javafx.stage.Modality;
 import javafx.stage.Stage;
+import javafx.stage.WindowEvent;
 import jobposter.model.Job;
 import jobposter.model.Mapper;
 import jobposter.model.WrapperAmazonS3;
 import jobpostergui.controller.JobEditorController;
 import jobpostergui.controller.NewJobController;
+import jobpostergui.controller.RootLayoutController;
 import jobpostergui.model.JobForTableView;
 
 
@@ -54,36 +62,15 @@ public class MainApp extends Application {
     
     private List<String> htmlFileNames = new ArrayList<>();
     private List<String> jobsToBeDeleted = new ArrayList<>();
-    private List<String> htmlFilesThatNeedToBeSaved = new ArrayList<>();
+    private List<String> htmlFilesThatNeedToBeSaved = new ArrayList<>();        
 
-    public MainApp(){
-        // some sample data
-        jobs = new HashMap<>();
-        
-        Job job1 = new Job();
-        job1.setHtmlFileKey("job-1-m-w.html");
-        job1.setVisible(true);
-        job1.setHtmlContent("<h2 data-job-type=\"it\"> Tolle*r Entwickler*in (m/w) </h2><br>"
-                + "<p> Bla und Bla sag ich dir!</p>");
-        
-        Job job2 = new Job();
-        job2.setHtmlFileKey("job-2-m-w.html");
-        job2.setVisible(false);
-        job2.setHtmlContent("<h2 data-job-type=\"it\"> Chef*in vons ganze (m/w) </h2><br>"
-                + "<p> Bla und Bla und wer hätte es gedacht!?</p>");
-        
-        jobs.put("job-1-m-w.html", job1);
-        jobs.put("job-2-m-w.html", job2);                        
-        
-        createJobsForTableView(jobs.values());
-        
-        
-        
+    private Label statusLabel;
+    
+    public MainApp(){        
         wrapperAmazonS3 = new WrapperAmazonS3();
         wrapperAmazonS3.setBucketName(BUCKET_NAME);
         wrapperAmazonS3.setJsonFileKey(JOB_JSON_FILE_KEY);
-        wrapperAmazonS3.setAmazonS3(createAmazonS3Object());
-        
+        wrapperAmazonS3.setAmazonS3(createAmazonS3Object());        
     }
     
     @Override
@@ -93,7 +80,26 @@ public class MainApp extends Application {
 
         initRootLayout();
 
-        showJobEditor();        
+        showJobEditor();   
+        
+        //Platform.setImplicitExit(false);
+
+        primaryStage.setOnCloseRequest(new EventHandler<WindowEvent>() {
+            @Override
+            public void handle(WindowEvent event) {
+                if (jobsToBeDeleted.isEmpty() && htmlFilesThatNeedToBeSaved.isEmpty()) return;
+                
+                Alert alert = new Alert(AlertType.CONFIRMATION);
+                alert.setTitle("Confirm exit");
+                alert.setHeaderText("Looks like there are unsaved changes.");
+                alert.setContentText("Do you really want to quit?");
+
+                Optional<ButtonType> result = alert.showAndWait();
+                if (result.get() != ButtonType.OK){                    
+                    event.consume();
+                }
+            }
+        });
     }
     
     public void initRootLayout() {
@@ -107,7 +113,10 @@ public class MainApp extends Application {
             Scene scene = new Scene(rootLayout);
             //scene.getStylesheets().add("/styles/styles.css");
             primaryStage.setScene(scene);
-            primaryStage.show();
+            primaryStage.show();  
+                        
+            RootLayoutController rootController = loader.getController();
+            statusLabel = rootController.getStatusLabel();                                   
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -134,6 +143,7 @@ public class MainApp extends Application {
     }
     
     public void loadJobsFromAmazonS3() throws IOException {
+        setStatusMessage("loading jobs from AmazonS3 bucket ... ");
         htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
         jobsToBeDeleted = new ArrayList<>();
         htmlFilesThatNeedToBeSaved = new ArrayList<>();
@@ -151,7 +161,8 @@ public class MainApp extends Application {
         }
         
         createJobsForTableView(jobs.values());
-        jobsWereLoaded = true;        
+        jobsWereLoaded = true;
+        setStatusMessageIdle();
     }
     
     public void propagateRenamingOfFileToAllLists(String oldFileName, String newFileName) {
@@ -212,6 +223,7 @@ public class MainApp extends Application {
             }
             
             deleteJobsFromAmazonS3();
+            htmlFilesThatNeedToBeSaved = new ArrayList<>();
         }
         
     }
@@ -315,5 +327,22 @@ public class MainApp extends Application {
     public void deleteFromJobsForTableView(JobForTableView currentlySelectedJob) {
         addJobToDeleteList(currentlySelectedJob.getHtmlFileKey());
         jobsForTableView.remove(currentlySelectedJob);
+    }
+    
+    public Boolean hasChangesToSave() {
+        if (jobsToBeDeleted.isEmpty() && htmlFilesThatNeedToBeSaved.isEmpty()) {
+            return false;
+        }
+        return true;
+    }
+
+    private void setStatusMessage(String message) {
+        statusLabel.setTextFill(Color.web("#CC1010"));
+        statusLabel.setText("status: " + message);
+    }
+
+    private void setStatusMessageIdle() {
+        statusLabel.setTextFill(Color.web("#000000"));
+        statusLabel.setText("status: idle");
     }
 }

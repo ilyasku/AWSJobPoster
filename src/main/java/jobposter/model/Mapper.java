@@ -27,7 +27,7 @@ public class Mapper {
         return visibleJobs;
     }
     
-    public static void updateJobByHtmlContent(Job job, String htmlContent){
+    public static void updateJobByHtmlContent(Job job, String htmlContent){                
         Document htmlDocument = Jsoup.parse(htmlContent);        
         // select the first heading
         Element heading = htmlDocument.select("h0, h1, h2, h3, h4, h5, h6").first();
@@ -38,7 +38,7 @@ public class Mapper {
         }
         else{
             jobType = JobType.IT;
-        }
+        }                
         
         job.setHtmlContent(htmlContent);
         job.setJobType(jobType);

@@ -1,7 +1,6 @@
 package jobposter.model;
 
-public class Job {
-    
+public class Job {    
     
     private Boolean visible;
     private String htmlFileKey;

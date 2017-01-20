@@ -1,16 +1,12 @@
 package jobpostergui.controller;
 
 import java.io.IOException;
-import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
 import javafx.beans.value.ChangeListener;
 import javafx.beans.value.ObservableValue;
 import javafx.collections.FXCollections;
-import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
-import javafx.scene.Node;
-import javafx.scene.Parent;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.control.Button;
 import javafx.scene.control.CheckBox;
 import javafx.scene.control.ComboBox;
@@ -24,6 +20,9 @@ import jobposter.model.JobType;
 import jobposter.model.Mapper;
 import jobpostergui.MainApp;
 import jobpostergui.model.JobForTableView;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 
 public class JobEditorController {
     
@@ -54,7 +53,7 @@ public class JobEditorController {
             
     private MainApp mainApp;
         
-    private JobForTableView currentlySelectedJob;
+    private JobForTableView currentlySelectedJob = null;
     
     public JobEditorController() {                            
     }
@@ -82,14 +81,18 @@ public class JobEditorController {
         });
         
         jobTypeComboBox.setItems(FXCollections.observableArrayList("IT", "office"));
+        saveJobsButton.setDisable(true);
     }
     
     private void showJobDetails(JobForTableView jobForTableView) {
         if (currentlySelectedJob != null) {
-            updateJobHtmlContent();
-            // if a job was touched, it is added to the list of files that need to
-            // be safed (even if it wasn't edited)
-            mainApp.addToFilesThatNeedToBeSaved(currentlySelectedJob.getHtmlFileKey());
+            String oldJobContent = currentlySelectedJob.getHtmlContent();
+            updateJobHtmlContent();            
+            // apparently,the `fileNameField` listener is not triggered if you 
+            // click on an item in the `jobTable`, so handleFileNameEdited
+            // needs to be called here. Wish I could avoid this ...
+            // The event listener works very well if you click on any other item.
+            handleFileNameEdited();
         }
         currentlySelectedJob = jobForTableView;
         if (jobForTableView != null) {
@@ -117,7 +120,6 @@ public class JobEditorController {
      */
     public void setMainApp(MainApp mainApp) {
         this.mainApp = mainApp;
-
         // Add observable list data to the table
         jobTable.setItems(mainApp.getJobsForTableView());
     }
@@ -125,84 +127,136 @@ public class JobEditorController {
     
     @FXML
     private void handleFileNameEdited() {
-        if (currentlySelectedJob != null){
-            String oldFileName = currentlySelectedJob.getHtmlFileKey();
-            String newFileName = fileNameField.getText();
-            currentlySelectedJob.setHtmlFileKey(newFileName);
-            if (!oldFileName.equals(newFileName)) {                
-                mainApp.propagateRenamingOfFileToAllLists(oldFileName, newFileName);
-            }
-        }
+        if (currentlySelectedJob == null) return;
+        
+        String oldFileName = currentlySelectedJob.getHtmlFileKey();
+        String newFileName = fileNameField.getText();
+        
+        if(!newFileName.contains(".html")) {            
+            Alert alert = new Alert(AlertType.WARNING);
+            alert.initOwner(mainApp.getPrimaryStage());
+            alert.setTitle("Not a html file!");
+            alert.setHeaderText("Not a html file!");
+            alert.setContentText("File name needs a '.html' suffix.\nWill now reset to valid name.");
+            alert.showAndWait();
+            
+            fileNameField.setText(oldFileName);
+            return;
+        }  
+        
+        if (oldFileName.equals(newFileName)) return;
+        
+        currentlySelectedJob.setHtmlFileKey(newFileName);
+        mainApp.propagateRenamingOfFileToAllLists(oldFileName, newFileName);
+        if (mainApp.hasChangesToSave()) {
+            saveJobsButton.setDisable(false);
+        }        
     }
 
     
     @FXML
-    private void handleJobTypeSelected() {        
-        if (currentlySelectedJob != null) {
-            Job job = currentlySelectedJob.getJob();
-            String jobTypeString = (String) jobTypeComboBox.getValue();
-            if ("office".equals(jobTypeString)) {
-                job.setJobType(JobType.OFFICE);                
-            }
-            else {
-                job.setJobType(JobType.IT);
-            }
-            String htmlString = contentHtmlEditor.getHtmlText();
-            String htmlStringWithJobTypeUpdated = Mapper.insertJobTypeIntoHtmlString(htmlString, job.getJobType());            
-            contentHtmlEditor.setHtmlText(htmlStringWithJobTypeUpdated);
+    private void handleJobTypeSelected() {
+        if (currentlySelectedJob == null) return;
+
+        Job job = currentlySelectedJob.getJob();
+        JobType oldJobType = job.getJobType();
+        String jobTypeString = (String) jobTypeComboBox.getValue();
+        if ("office".equals(jobTypeString)) {
+            job.setJobType(JobType.OFFICE);                
         }
+        else {
+            job.setJobType(JobType.IT);
+        }
+        
+        if (oldJobType == job.getJobType()) return;
+        
+        String htmlString = getBodyOfDocumentInHtmlEditor();//contentHtmlEditor.getHtmlText();
+        String htmlStringWithJobTypeUpdated = Mapper.insertJobTypeIntoHtmlString(htmlString, job.getJobType());            
+        contentHtmlEditor.setHtmlText(htmlStringWithJobTypeUpdated);
+        updateJobHtmlContent();
     }
     
     @FXML
     private void handleVisibleCheckBoxClicked() {
+        if (currentlySelectedJob == null) return;
+        
+        Boolean visibilityBefore = currentlySelectedJob.isVisible();
         currentlySelectedJob.setVisible(visibleCheckBox.isSelected());
+        
+        if (visibilityBefore == currentlySelectedJob.isVisible()) return;
+        
+        mainApp.addToFilesThatNeedToBeSaved(currentlySelectedJob.getHtmlFileKey());
+        saveJobsButton.setDisable(false);
+        
     }
     @FXML
     private void handleDeleteButtonClicked() {
-        /**
-        int selectedIndex = jobTable.getSelectionModel().getSelectedIndex();
-        if (selectedIndex >= 0) {
-            jobTable.getItems().remove(selectedIndex);
-        }
-        */        
-        System.out.println("deleteButton clicked!");        
         fileNameField.setText("");
         contentHtmlEditor.setHtmlText("");
         visibleCheckBox.setSelected(false);
-        if (currentlySelectedJob != null) {
-            currentlySelectedJob.setVisible(false);
-            mainApp.deleteFromJobsForTableView(currentlySelectedJob);
-        }        
+        if (currentlySelectedJob == null) return;
+        
+        currentlySelectedJob.setVisible(false);
+        mainApp.deleteFromJobsForTableView(currentlySelectedJob);
+        
+        if (mainApp.hasChangesToSave()) {
+            saveJobsButton.setDisable(false);
+        }
     }
         
     @FXML
     private void handleSaveJobsButtonClicked() {
-        updateJobHtmlContent();
-        // add job currently selected to list of jobs that need to be saved.
-        mainApp.addToFilesThatNeedToBeSaved(currentlySelectedJob.getHtmlFileKey());
-        System.out.println("save button clicked!");
+        updateJobHtmlContent();               
         mainApp.writeJobsToAmazonS3();
+        saveJobsButton.setDisable(true);
     }
     
     @FXML
     private void handleLoadJobsButtonClicked() throws IOException {
-        System.out.println("load button clicked!");
         mainApp.loadJobsFromAmazonS3();
         jobTable.setItems(mainApp.getJobsForTableView());
     }
     
     @FXML
     private void handleAddJobButtonClicked() {
-        System.out.println("add job button clicked!");
         mainApp.showNewJobDialog();
+        if (mainApp.hasChangesToSave()) {
+            saveJobsButton.setDisable(false);
+        }
     }
     
+    
+    private void updateJobHtmlContent() {
+        if (currentlySelectedJob == null) return;
+        
+        String oldHtmlContent = currentlySelectedJob.getHtmlContent();
+        currentlySelectedJob.setHtmlContent(getBodyOfDocumentInHtmlEditor());//contentHtmlEditor.getHtmlText());
+        
+        if (oldHtmlContent.trim().equals(currentlySelectedJob.getHtmlContent().trim())) return;
+        
+        System.out.println("content changed!");
+        System.out.println("============ before =============");
+        System.out.println(oldHtmlContent);
+        System.out.println("============ after =============");
+        System.out.println(currentlySelectedJob.getHtmlContent());
+        
+        
+        mainApp.addToFilesThatNeedToBeSaved(currentlySelectedJob.getHtmlFileKey());
+        saveJobsButton.setDisable(false);        
+    }
+    
+    private String getBodyOfDocumentInHtmlEditor(){
+        Document htmlDocument = Jsoup.parse(contentHtmlEditor.getHtmlText());
+        Element body = htmlDocument.select("body").first();
+        return body.html();
+    }
     
     /**
      * Trying to set the stupid font of the Editor!
      * Not working so far.
      */
     private void setFontOfHtmlEditor() {
+        /*
         String feedback = "";
         int i = 0;
         List<String> cssIdentifier = Arrays.asList(".radio-button", ".top-toolbar", 
@@ -250,13 +304,8 @@ public class JobEditorController {
             contentHtmlEditor.setHtmlText("tried to set " + i + "!");
         }
         */        
-        contentHtmlEditor.setHtmlText(feedback);
+        //contentHtmlEditor.setHtmlText(feedback);
     }
 
-    private void updateJobHtmlContent() {
-        if (currentlySelectedJob != null) {
-            currentlySelectedJob.setHtmlContent(contentHtmlEditor.getHtmlText());
-        }
-    }
     
 }

@@ -8,15 +8,11 @@ import com.amazonaws.services.s3.model.S3ObjectSummary;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.junit.Test;
 import org.mockito.Matchers;
 import static org.mockito.Mockito.when;
 import org.junit.Ignore;
-import static org.junit.Assert.assertTrue;
-import org.mockito.Mockito;
 import static org.mockito.Mockito.mock;
 import org.apache.commons.io.IOUtils;
 
