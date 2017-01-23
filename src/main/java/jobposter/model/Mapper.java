@@ -80,5 +80,5 @@ public class Mapper {
         }
         Element body = htmlDocument.select("body").first();
         return body.html();
-    }
+    }        
 }

@@ -15,84 +15,115 @@ import static org.mockito.Mockito.when;
 import org.junit.Ignore;
 import static org.mockito.Mockito.mock;
 import org.apache.commons.io.IOUtils;
+import static org.junit.Assert.assertTrue;
+import org.junit.runner.RunWith;
+import static org.mockito.BDDMockito.given;
+import org.mockito.Mockito;
+import org.powermock.api.mockito.PowerMockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 
+
+@RunWith(PowerMockRunner.class)
 public class WrapperAmazonS3Test {
     
     public WrapperAmazonS3Test() {
     }
 
-    @Ignore
     @Test
-    public void testGetAllJobs() throws IOException {
+    public void testGetHtmlFileNames() {
+        System.out.println("=================================================");
+        System.out.println("test method: testGetHtmlFileNames");
         
-        // ===================================================
-        //            mock dependencies
-        // ===================================================
+        List<S3ObjectSummary> mockObjectSummaries = new ArrayList<>();
         
-        S3ObjectSummary mockObjectSummaryJob1 = mock(S3ObjectSummary.class);
-        S3ObjectSummary mockObjectSummaryJob2 = mock(S3ObjectSummary.class);
-        S3ObjectSummary mockObjectSummaryJson = mock(S3ObjectSummary.class);
+        S3ObjectSummary mockObjectSummary1 = mock(S3ObjectSummary.class);
+        S3ObjectSummary mockObjectSummary2 = mock(S3ObjectSummary.class);
+        S3ObjectSummary mockObjectSummary3 = mock(S3ObjectSummary.class);
         
-        when(mockObjectSummaryJob1.getKey()).thenReturn("test-job-1.html");
-        when(mockObjectSummaryJob2.getKey()).thenReturn("test-job-2.html");
-        when(mockObjectSummaryJson.getKey()).thenReturn("jobs.json");
-        
-        List<S3ObjectSummary> mockSummaries = new ArrayList<>();
-        
-        mockSummaries.add(mockObjectSummaryJob1);
-        mockSummaries.add(mockObjectSummaryJob2);
-        mockSummaries.add(mockObjectSummaryJson);
+        Mockito.doReturn("job1.html").when(mockObjectSummary1).getKey();
+        Mockito.doReturn("job2.html").when(mockObjectSummary2).getKey();
+        Mockito.doReturn("jobs.json").when(mockObjectSummary3).getKey();
+
+        mockObjectSummaries.add(mockObjectSummary1);
+        mockObjectSummaries.add(mockObjectSummary2);
+        mockObjectSummaries.add(mockObjectSummary3);
         
         ObjectListing mockObjectListing = mock(ObjectListing.class);
-        when(mockObjectListing.getObjectSummaries()).thenReturn(mockSummaries);
+        Mockito.doReturn(mockObjectSummaries).when(mockObjectListing).getObjectSummaries();
         
-
-        InputStream stubJob1InputStream = IOUtils.toInputStream("", "UTF-8");
-        InputStream stubJob2InputStream = IOUtils.toInputStream("", "UTF-8");
-                
-        S3Object mockTestJob1 = mock(S3Object.class);
-        //when(mockTestJob1.getObjectContent()).thenReturn((S3ObjectInputStream) stubJob1InputStream);
-        S3Object mockTestJob2 = mock(S3Object.class);
-        //when(mockTestJob1.getObjectContent()).thenReturn((S3ObjectInputStream) stubJob2InputStream);
+        AmazonS3 mockAmazonS3 = mock(AmazonS3.class);
+        Mockito.doReturn(mockObjectListing).when(mockAmazonS3).listObjects(Matchers.anyString());
         
+        WrapperAmazonS3 wrapper = new WrapperAmazonS3();
+        wrapper.setAmazonS3(mockAmazonS3);
+        wrapper.setBucketName("test-bucket");
         
-        AmazonS3 mockS3 = mock(AmazonS3.class);
-        when(mockS3.listObjects(Matchers.anyString())).thenReturn(mockObjectListing);
-        when(mockS3.getObject(Matchers.anyString(), Matchers.anyString())).thenReturn(mockTestJob1).thenReturn(mockTestJob2);
+        List<String> htmlFileNames = wrapper.getHtmlFileNames();
         
-        // ===================================================
-        
-        WrapperAmazonS3 wrapperAmazonS3 = new WrapperAmazonS3();
-        wrapperAmazonS3.setAmazonS3(mockS3);
-        
-        /*
-        List<String> htmlFileNames = wrapperAmazonS3.getHtmlFileNames();
-        Map<String, Job> jobs = new HashMap<>();
-        for (String htmlFileName: htmlFileNames) {
-            jobs.put(htmlFileName, wrapperAmazonS3.getJob(htmlFileName));
-        }        
-        
-        assertTrue(jobs.size() == 2);
-        assertTrue(jobs.containsKey("test-job-1.html"));
-        assertTrue(jobs.containsKey("test-job-2.html"));
-        assertTrue("test-job-1.html".equals(jobs.get("test-job-1.html").getHtmlFileKey()));
-        assertTrue("test-job-2.html".equals(jobs.get("test-job-2.html").getHtmlFileKey()));                
-        */
-    }
-
-    @Ignore
-    @Test
-    public void testGetVisibleJobs(){
-        
-        S3ObjectInputStream mockContentInputStream = mock(S3ObjectInputStream.class);
-        // @TODO How to mock `new InputStreamReader(mockContentInputStream)` inside
-        // WrapperAmazonS3.s3ObjectContentToString() ????
-        
-        S3Object mockJsonFileObject = mock(S3Object.class);
-        when(mockJsonFileObject.getObjectContent()).thenReturn(mockContentInputStream);
-        
-        AmazonS3 mockS3 = mock(AmazonS3.class);
-        when(mockS3.getObject(Matchers.anyString(), Matchers.anyString())).thenReturn(mockJsonFileObject);
+        assertTrue(2 == htmlFileNames.size());
+        assertTrue(htmlFileNames.contains("job1.html"));
+        assertTrue(htmlFileNames.contains("job2.html"));                
     }
     
+    @PrepareForTest(ReaderS3ObjectContent.class)
+    @Test
+    public void testGetJob() throws IOException {
+        System.out.println("=================================================");
+        System.out.println("test method: testGetJob");
+        
+        PowerMockito.mockStatic(ReaderS3ObjectContent.class);
+        PowerMockito.when(ReaderS3ObjectContent.InputStreamToString(Mockito.any()))
+                .thenReturn("<h2 data-job-type=\"it\">Job 1 (m/w)</h2><br><p>Description of Job 1!</p>");
+        
+        S3ObjectInputStream mockS3ObjectInputStream = mock(S3ObjectInputStream.class);
+        
+        S3Object mockS3Object = mock(S3Object.class);
+        Mockito.doReturn(mockS3ObjectInputStream).when(mockS3Object).getObjectContent();
+        
+        AmazonS3 mockAmazonS3 = mock(AmazonS3.class);
+        Mockito.doReturn(mockS3Object).when(mockAmazonS3).getObject(Matchers.anyString(), Matchers.anyString());
+                        
+        WrapperAmazonS3 wrapper = new WrapperAmazonS3();
+        wrapper.setAmazonS3(mockAmazonS3);
+        wrapper.setBucketName("test-bucket");
+        
+        Job job = wrapper.getJob("job1.html");
+        
+        assertTrue("job1.html".equals(job.getHtmlFileKey()));
+        assertTrue(JobType.IT == job.getJobType());
+        assertTrue("Job 1 (m/w)".equals(job.getTitle()));
+        assertTrue("<h2 data-job-type=\"it\">Job 1 (m/w)</h2><br><p>Description of Job 1!</p>".equals(job.getHtmlContent()));
+    }
+    
+    @PrepareForTest(ReaderS3ObjectContent.class)
+    @Test
+    public void testGetVisibleJobs() throws IOException {
+        System.out.println("=================================================");
+        System.out.println("test method: testGetVisibleJobs");
+        
+        PowerMockito.mockStatic(ReaderS3ObjectContent.class);
+        PowerMockito.when(ReaderS3ObjectContent.InputStreamToString(Mockito.any()))
+                .thenReturn("[{\"title\":\"Spaßbremse (m/w)\","
+                        + "\"path\":\"test-job-1.html\",\"vacancyType\":\"it\"},"
+                        + "{\"title\":\"Go-getter (m/w)\","
+                        + "\"path\":\"test-job-3.html\",\"vacancyType\":\"it\"}]");
+        
+        S3ObjectInputStream mockS3ObjectInputStream = mock(S3ObjectInputStream.class);
+        
+        S3Object mockS3Object = mock(S3Object.class);
+        Mockito.doReturn(mockS3ObjectInputStream).when(mockS3Object).getObjectContent();
+        
+        AmazonS3 mockAmazonS3 = mock(AmazonS3.class);
+        Mockito.doReturn(mockS3Object).when(mockAmazonS3).getObject(Matchers.anyString(), Matchers.anyString());
+                        
+        WrapperAmazonS3 wrapper = new WrapperAmazonS3();
+        wrapper.setAmazonS3(mockAmazonS3);
+        wrapper.setBucketName("test-bucket");
+        
+        List<String> listOfVisibleJobs = wrapper.getVisibleJobs();
+        
+        assertTrue(listOfVisibleJobs.contains("test-job-1.html"));
+        assertTrue(listOfVisibleJobs.contains("test-job-3.html"));
+    }    
 }

@@ -5,11 +5,9 @@ import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.S3Object;
 import com.amazonaws.services.s3.model.S3ObjectInputStream;
 import com.amazonaws.services.s3.model.S3ObjectSummary;
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.Writer;
 import java.util.ArrayList;
@@ -40,7 +38,7 @@ public class WrapperAmazonS3 {
     public Job getJob(String htmlFileName) throws IOException {
         Job job = new Job();
         job.setHtmlFileKey(htmlFileName);
-        String htmlContent = getContentOfHtmlFile(htmlFileName);
+        String htmlContent = getContentOfHtmlFile(htmlFileName);        
         Mapper.updateJobByHtmlContent(job, htmlContent);
         return job;
     }
@@ -83,15 +81,8 @@ public class WrapperAmazonS3 {
 
 
 
-    private String s3ObjectContentToString(S3ObjectInputStream objectContent) throws IOException {
-        String returnString = "";
-        BufferedReader reader = new BufferedReader(new InputStreamReader(objectContent));
-        while (true){
-            String line = reader.readLine();
-            if (line == null) break;
-            returnString += line + "\n";
-        }
-        return returnString;
+    private String s3ObjectContentToString(S3ObjectInputStream objectContent) throws IOException {                
+        return ReaderS3ObjectContent.InputStreamToString(objectContent);
     }  
 
     private boolean isHtml(String key) {
